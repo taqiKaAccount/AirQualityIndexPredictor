@@ -13,7 +13,7 @@ plotly>=5.18.0
 requests>=2.31.0
 
 # Integration & Ops
-hopsworks>=4.2.0
+hopsworks==4.2.*
 python-dotenv>=1.0.0
 tqdm>=4.66.0
 
