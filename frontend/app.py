@@ -229,6 +229,6 @@ st.markdown("---")
 st.markdown("""
 <div style='text-align: center; color: gray;'>
     Built for <b>Pearls AQI Project</b> • Karachi, Pakistan<br>
-    Data sources: OpenWeather API, AQICN • Model: LightGBM Ensemble
+    Data sources: Open-Meteo API, Hopsworks • Model: Multi-Model Suite (Ridge, HGBR, RF, MLP, DT)
 </div>
 """, unsafe_allow_html=True)
