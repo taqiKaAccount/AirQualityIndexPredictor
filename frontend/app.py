@@ -1,3 +1,9 @@
+import sys
+from pathlib import Path
+
+# Ensure project root is on sys.path (needed for Streamlit Cloud)
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
