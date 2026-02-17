@@ -171,9 +171,6 @@ with st.sidebar:
         ["HGBR", "Random Forest", "Ridge Regression", "Decision Tree", "Deep Learning (MLP)"]
     )
     
-    # Placeholder for R2 score
-    r2_placeholder = st.empty()
-    
     st.divider()
     if st.button("🚀 Trigger Data Pipeline", use_container_width=True):
         with st.status("Fetching latest data...", expanded=True):
@@ -223,20 +220,35 @@ if current_data and "error" not in current_data:
 st.header("🔮 3-Day Forecast")
 forecast_data = fetch_predictions(model_choice)
 if forecast_data and "error" not in forecast_data:
-    # Update R2 Score in sidebar
-    if 'r2_score' in forecast_data:
-        r2_placeholder.markdown(f"**Model R² Score:** `{forecast_data['r2_score']}`")
-    
     f_cols = st.columns(3)
     for i, day in enumerate(forecast_data['forecast']):
         with f_cols[i]:
             status_c = get_aqi_class(day['aqi'])
+            r2_val = day.get('r2', 'N/A')
+            mae_val = day.get('mae', 'N/A')
+            rmse_val = day.get('rmse', 'N/A')
             st.markdown(f"""
                 <div class="forecast-card">
                     <p style='color: #808080; margin-bottom: 5px;'>{day['date']}</p>
                     <h3 style='margin: 0; color: white !important;'>{day['aqi']}</h3>
                     <div style='height: 10px; width: 60%; margin: 15px auto; border-radius: 5px; background: { "linear-gradient(90deg, #0575E6, #00F260)" if day['aqi'] < 50 else "linear-gradient(90deg, #dc2430, #7b4397)" }'></div>
                     <p style='font-weight: 600; color: #e0e0e0;'>{day['category']}</p>
+                    <div style='margin-top: 12px; padding-top: 12px; border-top: 1px solid #2d2f3b;'>
+                        <div style='display: flex; justify-content: space-around; text-align: center;'>
+                            <div>
+                                <p style='color: #667eea; font-size: 18px; font-weight: 700; margin: 0;'>{r2_val}</p>
+                                <p style='color: #808080; font-size: 11px; margin: 0;'>R²</p>
+                            </div>
+                            <div>
+                                <p style='color: #FF416C; font-size: 18px; font-weight: 700; margin: 0;'>{mae_val}</p>
+                                <p style='color: #808080; font-size: 11px; margin: 0;'>MAE</p>
+                            </div>
+                            <div>
+                                <p style='color: #FDC830; font-size: 18px; font-weight: 700; margin: 0;'>{rmse_val}</p>
+                                <p style='color: #808080; font-size: 11px; margin: 0;'>RMSE</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             """, unsafe_allow_html=True)
 

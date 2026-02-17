@@ -126,7 +126,7 @@ class AQIEngine:
         feature_cols = selected_model["features"]
         X_input = df[feature_cols].iloc[-1:]
 
-        r2_score = selected_model.get("performance", {}).get("1d", {}).get("R2", 0.0)
+        performance = selected_model.get("performance", {})
 
         predictions = []
         base_date = pd.to_datetime(latest["event_timestamp"])
@@ -139,15 +139,20 @@ class AQIEngine:
             X_scaled = s.transform(X_input)
             aqi_val = m.predict(X_scaled)[0]
 
+            # Per-horizon metrics from training
+            h_perf = performance.get(horizon, {})
+
             predictions.append({
                 "date": (base_date + timedelta(days=i + 1)).strftime("%Y-%m-%d"),
                 "aqi": round(float(aqi_val), 2),
                 "category": get_aqi_category(aqi_val),
+                "r2": round(float(h_perf.get("R2", 0.0)), 3),
+                "mae": round(float(h_perf.get("MAE", 0.0)), 2),
+                "rmse": round(float(h_perf.get("RMSE", 0.0)), 2),
             })
 
         return {
             "model": model_name,
-            "r2_score": round(float(r2_score), 3),
             "forecast": predictions,
         }
 
