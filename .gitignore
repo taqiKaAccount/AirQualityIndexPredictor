@@ -1,6 +1,7 @@
 ref/
 notes/
 .env
+.streamlit/secrets.toml
 
 # Python artifacts
 __pycache__/

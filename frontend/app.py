@@ -5,6 +5,7 @@ import plotly.express as px
 import requests
 from datetime import datetime
 import time
+import os
 
 # --- Page Configuration ---
 st.set_page_config(
@@ -85,23 +86,74 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- API Configuration ---
-API_BASE_URL = "http://localhost:8000"
 
-def fetch_data(endpoint):
+# ============================================================
+# Deployment Mode: API (local) vs Integrated (Streamlit Cloud)
+# ============================================================
+# Integrated mode is auto-detected on Streamlit Cloud where
+# secrets are configured, or can be forced via env var.
+def _detect_integrated_mode():
+    if os.environ.get("STREAMLIT_CLOUD") == "1":
+        return True
     try:
-        response = requests.get(f"{API_BASE_URL}/{endpoint}")
-        if response.status_code == 200:
-            return response.json()
-    except Exception as e:
-        st.error(f"Error connecting to backend: {e}")
-    return None
+        return "HOPSWORKS_API_KEY" in st.secrets
+    except Exception:
+        return False
+
+INTEGRATED_MODE = _detect_integrated_mode()
+
+if INTEGRATED_MODE:
+    # --- Integrated Mode: import engine directly ---
+    from backend.engine import AQIEngine
+
+    @st.cache_resource
+    def get_engine():
+        """Initialize the AQI engine once and cache across reruns."""
+        engine = AQIEngine()
+        with st.spinner("🔌 Connecting to Hopsworks & loading models..."):
+            engine.startup()
+        return engine
+
+    ENGINE = get_engine()
+
+    def fetch_current():
+        return ENGINE.get_current_aqi()
+
+    def fetch_predictions(model_name):
+        return ENGINE.get_predictions(model_name)
+
+    def fetch_history():
+        return ENGINE.get_history()
+
+else:
+    # --- API Mode: talk to the FastAPI backend ---
+    API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:8000")
+
+    def _api_get(endpoint):
+        try:
+            response = requests.get(f"{API_BASE_URL}/{endpoint}")
+            if response.status_code == 200:
+                return response.json()
+        except Exception as e:
+            st.error(f"Error connecting to backend: {e}")
+        return None
+
+    def fetch_current():
+        return _api_get("current")
+
+    def fetch_predictions(model_name):
+        return _api_get("predict?model_name=" + model_name)
+
+    def fetch_history():
+        return _api_get("history")
+
 
 def get_aqi_class(aqi):
     if aqi <= 50: return "status-good"
     if aqi <= 100: return "status-moderate"
     if aqi <= 200: return "status-unhealthy"
     return "status-hazardous"
+
 
 # --- Sidebar ---
 with st.sidebar:
@@ -127,7 +179,9 @@ with st.sidebar:
             st.write("Updating Feature Store...")
         st.toast("Data updated successfully!", icon='✅')
 
-    st.info("The system automatically retrains models every 24 hours at 00:00 UTC.")
+    # Show deployment mode badge
+    mode_label = "☁️ Cloud Mode" if INTEGRATED_MODE else "🖥️ Local API Mode"
+    st.info(f"**{mode_label}** • Models retrain daily at 00:00 UTC.")
 
 # --- Header ---
 col1, col2 = st.columns([2, 1])
@@ -138,8 +192,8 @@ with col2:
     st.markdown(f"<div style='text-align: right; color: #808080; padding-top: 30px;'>Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
 
 # --- Real-time Metrics ---
-current_data = fetch_data("current")
-if current_data:
+current_data = fetch_current()
+if current_data and "error" not in current_data:
     aqi = current_data['aqi']
     status_class = get_aqi_class(aqi)
     
@@ -161,8 +215,8 @@ if current_data:
 
 # --- Forecast ---
 st.header("🔮 3-Day Forecast")
-forecast_data = fetch_data("predict?model_name=" + model_choice)
-if forecast_data:
+forecast_data = fetch_predictions(model_choice)
+if forecast_data and "error" not in forecast_data:
     # Update R2 Score in sidebar
     if 'r2_score' in forecast_data:
         r2_placeholder.markdown(f"**Model R² Score:** `{forecast_data['r2_score']}`")
@@ -183,7 +237,7 @@ if forecast_data:
 # --- Charts ---
 st.divider()
 st.header("📈 AQI Trends")
-history_data = fetch_data("history")
+history_data = fetch_history()
 if history_data:
     df = pd.DataFrame(history_data)
     
@@ -198,7 +252,7 @@ if history_data:
     ))
     
     # Add forecast line
-    if forecast_data:
+    if forecast_data and "error" not in forecast_data:
         f_df = pd.DataFrame(forecast_data['forecast'])
         # Connect last historical to first forecast
         combined_x = [df['date'].iloc[-1]] + list(f_df['date'])
