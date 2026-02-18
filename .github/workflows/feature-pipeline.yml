@@ -29,4 +29,4 @@ jobs:
           HOPSWORKS_PROJECT: ${{ secrets.HOPSWORKS_PROJECT }}
         run: |
           export PYTHONPATH=$PYTHONPATH:.
-          python -m data_pipeline.pipeline_manager --days 1
+          python -m data_pipeline.pipeline_manager --days 3
